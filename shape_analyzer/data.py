@@ -97,7 +97,13 @@ train_tfm = Tv2.Compose([
     Tv2.ColorJitter(0.4, 0.4),
     Tv2.ToImage(),
     Tv2.ToDtype(torch.float32, scale=True),
-    Tv2.Lambda(lambda x: x + (np.random.rand(*x.shape) < 0.02).astype(x.dtype) * (2 * np.random.rand(*x.shape) - 1)),
+    # Add random salt-and-pepper noise using torch operations to avoid dtype
+    # issues when mixing NumPy with torch tensors.
+    Tv2.Lambda(
+        lambda x: x
+        + (torch.rand_like(x) < 0.02).to(x.dtype)
+        * (2 * torch.rand_like(x) - 1)
+    ),
     Tv2.Normalize((0.5,), (0.5,)),
 ])
 
