@@ -3,12 +3,12 @@ import lightning.pytorch as L
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 from .config import cfg
-from .data import build_synthetic_dataset, build_qd_holdout, make_loaders
+from .data import build_qd_dataset, build_qd_holdout, make_loaders
 from .model import ShapeNet, ShapeLit
 
 
 def train():
-    build_synthetic_dataset()
+    build_qd_dataset()
     build_qd_holdout()
     dl_tr, dl_va, _ = make_loaders()
 

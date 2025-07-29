@@ -28,6 +28,28 @@ def build_synthetic_dataset(force: bool = False):
     print(f"✅ Wrote {cfg.DATA_PATH}  ({imgs.shape[0]:,} samples)")
 
 
+def build_qd_dataset(force: bool = False):
+    """Build dataset from Google QuickDraw sketches."""
+    if cfg.DATA_PATH.exists() and not force:
+        return
+    imgs, cls, reg = [], [], []
+    print("Building QuickDraw dataset …")
+    for shape in tqdm(cfg.CLASSES, total=len(cfg.CLASSES)):
+        src = _qd_array(shape)
+        choice = rng.choice(len(src), cfg.N_PER_SHAPE, replace=False)
+        for idx in choice:
+            arr = src[idx].reshape(28, 28)
+            img = Image.fromarray(arr).resize((cfg.OUT_RES, cfg.OUT_RES), Image.NEAREST)
+            imgs.append(np.asarray(img, np.uint8))
+            cls.append(cfg.CLASSES.index(shape))
+            reg.append(-1.0)
+    imgs = np.stack(imgs, axis=0).astype(np.uint8)
+    cls = np.asarray(cls, np.int8)
+    reg = np.asarray(reg, np.float32)
+    np.savez_compressed(cfg.DATA_PATH, imgs=imgs, cls=cls, reg=reg)
+    print(f"✅ Wrote {cfg.DATA_PATH}  ({len(imgs):,} samples)")
+
+
 def build_qd_holdout(force: bool = False):
     if cfg.HOLD_PATH.exists() and not force:
         return

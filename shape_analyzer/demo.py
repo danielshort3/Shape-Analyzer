@@ -42,7 +42,7 @@ def interactive_demo(ckpt_path: Path):
             inp = cv2.resize(small, (CANVAS, CANVAS), cv2.INTER_NEAREST)
             x = val_tfm(Image.fromarray(inp)).unsqueeze(0).to(device)
             with torch.no_grad(), torch.cuda.amp.autocast():
-                logits, reg = lit(x)
+                logits = lit(x)
             probs = logits.softmax(-1).cpu().numpy()[0]
             cls = probs.argmax()
             name = cfg.CLASSES[cls]
