@@ -8,6 +8,8 @@ from .config import cfg
 
 
 class ShapeNet(nn.Module):
+    """Simple ResNet18 encoder with a single classification head."""
+
     def __init__(self, n_cls: int = len(cfg.CLASSES), dropout_p: float = 0.4):
         super().__init__()
         base = resnet18(weights=None)
@@ -17,14 +19,10 @@ class ShapeNet(nn.Module):
         self.drop = nn.Dropout(dropout_p)
         dim = base.fc.in_features
         self.cls_head = nn.Linear(dim, n_cls)
-        self.reg_head = nn.Sequential(
-            nn.Linear(dim, 128), nn.ReLU(inplace=True), nn.Linear(128, 1)
-        )
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         f = self.drop(self.gap(self.encoder(x)).flatten(1))
-        return self.cls_head(f), self.sigmoid(self.reg_head(f)).squeeze(1)
+        return self.cls_head(f)
 
 
 class ShapeLit(L.LightningModule):
@@ -32,7 +30,6 @@ class ShapeLit(L.LightningModule):
         super().__init__()
         self.model = model
         self.loss_cls = nn.CrossEntropyLoss()
-        self.loss_reg = nn.MSELoss()
         self.train_acc = torchmetrics.Accuracy(task="multiclass", num_classes=len(cfg.CLASSES))
         self.val_acc = torchmetrics.Accuracy(task="multiclass", num_classes=len(cfg.CLASSES))
 
@@ -40,16 +37,14 @@ class ShapeLit(L.LightningModule):
         return self.model(x)
 
     def _step(self, batch, stage):
-        x, yc, yr = batch
-        logits, reg = self(x)
+        x, yc, *yr = batch
+        logits = self(x)
         cls_loss = self.loss_cls(logits, yc)
-        mask = yr >= 0
-        reg_loss = self.loss_reg(reg[mask], yr[mask]) if mask.any() else 0.0
-        loss = cls_loss + reg_loss
+        loss = cls_loss
         acc = self.train_acc if stage == "train" else self.val_acc
         acc.update(logits.softmax(-1), yc)
         self.log_dict(
-            {f"{stage}_{k}": v for k, v in dict(loss=loss, cls_loss=cls_loss, reg_loss=reg_loss, acc=acc).items()},
+            {f"{stage}_{k}": v for k, v in dict(loss=loss, cls_loss=cls_loss, acc=acc).items()},
             prog_bar=True,
             sync_dist=True,
         )

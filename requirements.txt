@@ -1,6 +1,11 @@
-# Dependencies for inference.py
-# Install with: pip install -r requirements.txt
-
 torch
 torchvision
+torchmetrics
+lightning
+scikit-image
+numpy
 Pillow
+requests
+tqdm
+matplotlib
+opencv-python-headless
