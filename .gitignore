@@ -7,3 +7,5 @@
 !/checkpoints
 !/checkpoints/*.ckpt
 /shape_analyzer
+/__pycache__
+/checkpoints

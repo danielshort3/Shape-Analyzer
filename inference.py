@@ -8,7 +8,7 @@ Request  (HTTP POST, JSON):
 
 Response (200):
 {
-  "class": "cat",
+  "class": "square",
   "confidence": 0.9921          # range 0‑1
 }
 """
@@ -27,9 +27,6 @@ else:
     ckpts = glob.glob(os.path.join("checkpoints", "*.ckpt"))
     MODEL_PATH = ckpts[0] if ckpts else "model.pt"
 DEVICE     = "cpu"
-
-# Enable TensorFloat-32 computation on supported hardware
-torch.set_float32_matmul_precision("high")
 
 model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
 model.eval()
@@ -50,27 +47,28 @@ LABELS = [
 # ───────────────────────────── 2. Lambda handler ──────────────────────────────
 def handler(event, context):
     try:
-        body = json.loads(event["body"])
-        img_b64 = body["b64"]
+        # ─── 1. Parse payload ───────────────────────────────────────────────
+        if event.get("isBase64Encoded"):          # raw binary via Function URL
+            img_bytes = base64.b64decode(event["body"])
+        else:
+            body = json.loads(event["body"])
+            img_bytes = base64.b64decode(body["b64"])
 
-        # Decode image → tensor
-        img_bytes = base64.b64decode(img_b64)
-        img       = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-        x         = preprocess(img).unsqueeze(0).to(DEVICE)  # (1, C, H, W)
+        # ─── 2. Pre‑process & predict ──────────────────────────────────────
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        x   = preprocess(img).unsqueeze(0).to(DEVICE)
 
-        # Forward pass
         with torch.no_grad():
-            logits = model(x)
-            probs  = torch.softmax(logits, dim=1)[0]
+            probs = torch.softmax(model(x), dim=1)[0]
             conf, idx = torch.max(probs, 0)
 
+        # ─── 3. Return result ──────────────────────────────────────────────
         return _resp(200, {
             "class": LABELS[idx],
             "confidence": round(conf.item(), 4),
         })
 
     except Exception as exc:
-        # Log stack trace in CloudWatch; return generic error to caller
         print("ERROR:", exc)
         return _resp(500, {"error": str(exc)})
 
