@@ -6,11 +6,7 @@ import numpy as np
 import torch
 
 # Enable TensorFloat‑32 computation on supported hardware
-if hasattr(torch.backends.cuda.matmul, "fp32_precision"):
-    torch.backends.cuda.matmul.fp32_precision = "high"
-    torch.backends.cudnn.conv.fp32_precision = "tf32"
-else:
-    torch.set_float32_matmul_precision("high")
+torch.set_float32_matmul_precision("high")
 from torchvision import transforms as T
 
 from .config import cfg

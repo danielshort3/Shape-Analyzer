@@ -22,11 +22,7 @@ MODEL_PATH = os.getenv("MODEL_PATH", "model.pt")   # override via Lambda env
 DEVICE     = "cpu"
 
 # Enable TensorFloat-32 computation on supported hardware
-if hasattr(torch.backends.cuda.matmul, "fp32_precision"):
-    torch.backends.cuda.matmul.fp32_precision = "high"
-    torch.backends.cudnn.conv.fp32_precision = "tf32"
-else:
-    torch.set_float32_matmul_precision("high")
+torch.set_float32_matmul_precision("high")
 
 model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
 model.eval()
