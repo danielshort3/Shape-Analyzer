@@ -16,12 +16,13 @@ Returns 200:
 from __future__ import annotations
 import base64, io, json, os, sys, time
 from typing import Any
+from shape_analyzer.inference_config import cfg
 
 # ───────────────────────────── Constants ──────────────────────────────
-MODEL_PATH      = os.getenv("MODEL_PATH", "/opt/python/model.pt")
-LABELS          = ["circle", "triangle", "square", "hexagon", "octagon"]
-IMG_SIZE        = 224                  # final crop‑size for the model
-MAX_REQ_BYTES   = 500_000              # reject > 500 kB payloads
+MODEL_PATH      = cfg.MODEL_PATH.as_posix()
+LABELS          = list(cfg.LABELS)
+IMG_SIZE        = cfg.IMG_SIZE                   # final crop‑size for the model
+MAX_REQ_BYTES   = cfg.MAX_REQ_BYTES              # reject > 500 kB payloads
 
 # Globals – initialised lazily inside _load_model()
 _model          = None                 # torch.nn.Module
@@ -56,7 +57,7 @@ def _load_model():
 
     from shape_analyzer.model import ShapeNet
 
-    model = ShapeNet()
+    model = ShapeNet(n_cls=len(LABELS))
     model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     model.eval()
 
