@@ -13,12 +13,19 @@ Response (200):
 }
 """
 
-import base64, io, json, os, torch
+import base64, io, json, os, torch, glob
 from PIL import Image
 from torchvision import transforms
 
 # ───────────────────────────── 1. Model & labels ──────────────────────────────
-MODEL_PATH = os.getenv("MODEL_PATH", "model.pt")   # override via Lambda env
+# Allow Lambda environment variable to override checkpoint path. If not set,
+# automatically pick the first *.ckpt file from the `checkpoints` directory.
+_model_path = os.getenv("MODEL_PATH")
+if _model_path:
+    MODEL_PATH = _model_path
+else:
+    ckpts = glob.glob(os.path.join("checkpoints", "*.ckpt"))
+    MODEL_PATH = ckpts[0] if ckpts else "model.pt"
 DEVICE     = "cpu"
 
 # Enable TensorFloat-32 computation on supported hardware
