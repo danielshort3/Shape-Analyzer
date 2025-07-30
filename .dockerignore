@@ -1,0 +1,7 @@
+# Ignore Visual Studio workspace metadata
+.vs/
+**/.vs/
+
+# Optional: ignore other local directories not needed for build
+.git
+
