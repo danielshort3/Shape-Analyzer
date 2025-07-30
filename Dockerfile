@@ -18,9 +18,9 @@ COPY inference.py   .
 COPY shape_analyzer /opt/python/shape_analyzer
 
 # Copy the only checkpoint file, renaming it to a stable path
-COPY checkpoints/*.ckpt /tmp/
-RUN mv /tmp/*.ckpt model.ckpt
-ENV MODEL_PATH="model.ckpt"
+COPY checkpoints/*.pt /tmp/
+RUN mv /tmp/*.pt model.pt
+ENV MODEL_PATH="model.pt"
 
 # ----------------------------------------------------------------------
 # 3. Tell Lambda which function to run
