@@ -36,7 +36,7 @@ preprocess = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
     transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+    transforms.Normalize([0.5], [0.5]),
 ])
 
 # Class names in index order ─ replace with your own
@@ -55,7 +55,7 @@ def handler(event, context):
             img_bytes = base64.b64decode(body["b64"])
 
         # ─── 2. Pre‑process & predict ──────────────────────────────────────
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        img = Image.open(io.BytesIO(img_bytes)).convert("L")
         x   = preprocess(img).unsqueeze(0).to(DEVICE)
 
         with torch.no_grad():
