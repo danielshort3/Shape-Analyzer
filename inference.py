@@ -28,7 +28,6 @@ else:
     ckpts = glob.glob(os.path.join("checkpoints", "*.ckpt"))
     MODEL_PATH = ckpts[0] if ckpts else "model.ckpt"
 DEVICE = "cpu"
-torch.set_float32_matmul_precision("high")
 
 lit = ShapeLit.load_from_checkpoint(MODEL_PATH, map_location=DEVICE, model=ShapeNet())
 model = lit.model.eval()
