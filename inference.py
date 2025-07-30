@@ -16,6 +16,7 @@ Response (200):
 import base64, io, json, os, torch, glob
 from PIL import Image
 from torchvision import transforms
+from shape_analyzer.model import ShapeNet, ShapeLit
 
 # ───────────────────────────── 1. Model & labels ──────────────────────────────
 # Allow Lambda environment variable to override checkpoint path. If not set,
@@ -25,11 +26,12 @@ if _model_path:
     MODEL_PATH = _model_path
 else:
     ckpts = glob.glob(os.path.join("checkpoints", "*.ckpt"))
-    MODEL_PATH = ckpts[0] if ckpts else "model.pt"
-DEVICE     = "cpu"
+    MODEL_PATH = ckpts[0] if ckpts else "model.ckpt"
+DEVICE = "cpu"
+torch.set_float32_matmul_precision("high")
 
-model = torch.jit.load(MODEL_PATH, map_location=DEVICE)
-model.eval()
+lit = ShapeLit.load_from_checkpoint(MODEL_PATH, map_location=DEVICE, model=ShapeNet())
+model = lit.model.eval()
 
 # Change to your model’s expected size / stats
 preprocess = transforms.Compose([
