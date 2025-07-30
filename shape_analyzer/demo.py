@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
 import torch
+
+# Enable TensorFloat‑32 computation on supported hardware
+torch.set_float32_matmul_precision("high")
 from torchvision import transforms as T
 
 from .config import cfg
