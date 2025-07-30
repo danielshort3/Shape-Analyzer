@@ -16,7 +16,13 @@ def train():
     lit = ShapeLit(model)
 
     early = EarlyStopping(monitor="val_loss", patience=3, mode="min")
-    ckpt = ModelCheckpoint(dirpath=cfg.CKPT_DIR, save_top_k=1, monitor="val_loss", mode="min")
+    ckpt = ModelCheckpoint(
+        dirpath=cfg.CKPT_DIR,
+        save_top_k=1,
+        monitor="val_loss",
+        mode="min",
+        save_weights_only=True,
+    )
 
     trainer = L.Trainer(
         max_epochs=cfg.MAX_EPOCHS,

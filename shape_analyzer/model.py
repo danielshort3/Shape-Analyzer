@@ -39,12 +39,11 @@ class ShapeLit(L.LightningModule):
     def _step(self, batch, stage):
         x, yc, *yr = batch
         logits = self(x)
-        cls_loss = self.loss_cls(logits, yc)
-        loss = cls_loss
+        loss = self.loss_cls(logits, yc)
         acc = self.train_acc if stage == "train" else self.val_acc
         acc.update(logits.softmax(-1), yc)
         self.log_dict(
-            {f"{stage}_{k}": v for k, v in dict(loss=loss, cls_loss=cls_loss, acc=acc).items()},
+            {f"{stage}_{k}": v for k, v in dict(loss=loss, acc=acc).items()},
             prog_bar=True,
             sync_dist=True,
         )
