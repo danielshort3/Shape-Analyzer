@@ -1,7 +1,6 @@
 torch
 torchvision
-torchmetrics
-lightning
+
 scikit-image
 numpy
 Pillow

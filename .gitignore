@@ -5,7 +5,7 @@
 /.vs
 /checkpoints
 !/checkpoints
-!/checkpoints/*.ckpt
+!/checkpoints/*.pt
 /shape_analyzer
 /__pycache__
 /checkpoints
