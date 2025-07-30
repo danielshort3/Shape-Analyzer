@@ -2,6 +2,9 @@ import torch
 import lightning.pytorch as L
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
+# Enable TensorFloat‑32 computation on supported hardware
+torch.set_float32_matmul_precision("high")
+
 from .config import cfg
 from .data import build_qd_dataset, build_qd_holdout, make_loaders
 from .model import ShapeNet, ShapeLit
