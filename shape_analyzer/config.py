@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-import os
 import numpy as np
 
 @dataclass
@@ -44,7 +43,7 @@ class CFG:
     # file paths ---------------------------------------------------------
     DATA_PATH: Path = Path("shapes_data.npz")
     HOLD_PATH: Path = Path("qd_holdout.npz")
-    CACHE_DIR: Path = Path(os.getenv("CACHE_DIR", "/tmp/qd_cache"))
+    CACHE_DIR: Path = Path("qd_cache")
     CKPT_DIR: Path = Path("checkpoints")
 
 
