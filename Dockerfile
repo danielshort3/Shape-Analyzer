@@ -6,12 +6,17 @@ FROM public.ecr.aws/lambda/python:3.12
 # ----------------------------------------------------------------------
 # Put ONLY the libs your inference code needs into requirements-inference.txt
 COPY requirements-inference.txt .
-RUN pip install --no-cache-dir --no-compile -r requirements-inference.txt -t /opt
+
+RUN pip install --no-cache-dir --no-compile \
+      -r requirements-inference.txt \
+      --target /opt/python
 
 # ----------------------------------------------------------------------
 # 2. Add inference code and model weights
 # ----------------------------------------------------------------------
 COPY inference.py   .
+COPY shape_analyzer /opt/python/shape_analyzer
+
 # Copy the only checkpoint file, renaming it to a stable path
 COPY checkpoints/*.ckpt /tmp/
 RUN mv /tmp/*.ckpt model.ckpt

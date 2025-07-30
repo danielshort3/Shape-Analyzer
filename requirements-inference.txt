@@ -6,5 +6,8 @@ torchvision==0.17.2+cpu
 # ─── PyTorch Lightning (pure Python) ──────────────────────────────────
 lightning==2.2.*                # same minor (2.2) as torch
 
+# ── Numeric stack ─────────────────────────────────────────────────────
+numpy==1.26.4             # <<< add this line
+
 # ─── Image handling ────────────────────────────────────────────────────
 Pillow>=10.0,<11.0
