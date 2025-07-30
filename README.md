@@ -2,11 +2,13 @@
 
 ## Setup
 
-Install the required Python packages before running the inference script:
+Install the required Python packages before running the training or inference scripts:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Training the model produces `model.pt` inside the `checkpoints` directory. The
-inference script expects this `.pt` file rather than a Lightning checkpoint.
+Training uses the Lightning framework. After training completes, the script
+automatically extracts the raw weights from the best `.ckpt` file and writes
+`model.pt` into the `checkpoints` directory. The inference script loads this
+`.pt` file directly without needing Lightning installed.
