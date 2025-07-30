@@ -1,7 +1,7 @@
 from pathlib import Path
 import torch
 import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
 # Enable TensorFloat‑32 computation on supported hardware
 torch.set_float32_matmul_precision("high")
@@ -31,13 +31,19 @@ class LitShape(L.LightningModule):
         x, y, _ = batch
         logits = self(x)
         loss = self.loss_fn(logits, y)
+        preds = logits.argmax(dim=1)
+        acc = (preds == y).float().mean()
         self.log("val_loss", loss, prog_bar=True)
+        self.log("val_acc", acc, prog_bar=True)
         return loss
 
     def configure_optimizers(self):
         opt = torch.optim.AdamW(self.parameters(), lr=cfg.LR, weight_decay=cfg.WD)
         sch = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            opt, "min", patience=2, factor=0.5
+            opt,
+            "min",
+            patience=cfg.LR_PATIENCE,
+            factor=0.5,
         )
         return {
             "optimizer": opt,
@@ -58,11 +64,16 @@ def train() -> Path:
         monitor="val_loss",
         mode="min",
     )
+    early_cb = EarlyStopping(
+        monitor="val_loss",
+        patience=cfg.EARLY_STOP_PATIENCE,
+        mode="min",
+    )
 
     trainer = L.Trainer(
         max_epochs=cfg.MAX_EPOCHS,
         precision=cfg.PRECISION,
-        callbacks=[ckpt_cb],
+        callbacks=[ckpt_cb, early_cb],
         default_root_dir=cfg.CKPT_DIR,
     )
     trainer.fit(lit, train_dataloaders=dl_tr, val_dataloaders=dl_va)

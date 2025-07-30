@@ -37,6 +37,8 @@ class CFG:
     LR: float = 3e-4
     WD: float = 1e-4
     PRECISION: str = "16-mixed"
+    LR_PATIENCE: int = 2
+    EARLY_STOP_PATIENCE: int = 6
 
     # file paths ---------------------------------------------------------
     DATA_PATH: Path = Path("shapes_data.npz")
