@@ -4,4 +4,6 @@
 /.ipynb_checkpoints
 /.vs
 /checkpoints
+!/checkpoints
+!/checkpoints/*.ckpt
 /shape_analyzer
