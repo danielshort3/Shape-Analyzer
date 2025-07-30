@@ -3,9 +3,6 @@ torch==2.2.2+cpu
 torchvision==0.17.2+cpu
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# ─── PyTorch Lightning (pure Python) ──────────────────────────────────
-lightning==2.2.*                # same minor (2.2) as torch
-
 # ── Numeric stack ─────────────────────────────────────────────────────
 numpy==1.26.4             # <<< add this line
 

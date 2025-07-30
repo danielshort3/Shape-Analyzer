@@ -10,13 +10,14 @@ torch.set_float32_matmul_precision("high")
 from torchvision import transforms as T
 
 from .config import cfg
-from .model import ShapeNet, ShapeLit
+from .model import ShapeNet
 
 
-def interactive_demo(ckpt_path: Path):
+def interactive_demo(weight_path: Path):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    lit = ShapeLit.load_from_checkpoint(ckpt_path, map_location=device, model=ShapeNet())
-    lit.eval().to(device)
+    model = ShapeNet().to(device)
+    model.load_state_dict(torch.load(weight_path, map_location=device))
+    model.eval()
     val_tfm = T.Compose([T.ToTensor(), T.Normalize([0.5], [0.5])])
 
     CANVAS, TH = cfg.OUT_RES, cfg.STROKE_PX
@@ -45,7 +46,7 @@ def interactive_demo(ckpt_path: Path):
             inp = cv2.resize(small, (CANVAS, CANVAS), cv2.INTER_NEAREST)
             x = val_tfm(Image.fromarray(inp)).unsqueeze(0).to(device)
             with torch.no_grad(), torch.cuda.amp.autocast():
-                logits = lit(x)
+                logits = model(x)
             probs = logits.softmax(-1).cpu().numpy()[0]
             cls = probs.argmax()
             name = cfg.CLASSES[cls]
