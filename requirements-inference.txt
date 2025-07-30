@@ -3,8 +3,7 @@ torch==2.2.2+cpu
 torchvision==0.17.2+cpu
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# ── Numeric stack ─────────────────────────────────────────────────────
-numpy==1.26.4             # <<< add this line
-
-# ─── Image handling ────────────────────────────────────────────────────
+numpy==1.26.4
+scikit-image==0.23.2
 Pillow>=10.0,<11.0
+requests==2.31.0
