@@ -3,7 +3,11 @@ import lightning.pytorch as L
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 # Enable TensorFloat‑32 computation on supported hardware
-torch.set_float32_matmul_precision("high")
+if hasattr(torch.backends.cuda.matmul, "fp32_precision"):
+    torch.backends.cuda.matmul.fp32_precision = "high"
+    torch.backends.cudnn.conv.fp32_precision = "tf32"
+else:
+    torch.set_float32_matmul_precision("high")
 
 from .config import cfg
 from .data import build_qd_dataset, build_qd_holdout, make_loaders
