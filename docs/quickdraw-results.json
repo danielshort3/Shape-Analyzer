@@ -1,0 +1,391 @@
+{
+  "study": "Four-epoch small Google Quick, Draw! CPU model",
+  "source_objects": [
+    {
+      "class": "circle",
+      "bytes": 96334864,
+      "sha256": "edeeb735e0b2caecc9ee6a2239e0316177ceb5e030f1e085575d9a93a53d84ea",
+      "generation": "1495085321252150"
+    },
+    {
+      "class": "triangle",
+      "bytes": 96565360,
+      "sha256": "a7f8bcc974fbeca129736d3bf60284bb825a9267cf51be3c2ace42a453175bde",
+      "generation": "1495085435847060"
+    },
+    {
+      "class": "square",
+      "bytes": 98113760,
+      "sha256": "8dcac3fe773607457cdcfd529824ee7c7c19e8f4803b223585627363b7ea0d63",
+      "generation": "1495085417725263"
+    },
+    {
+      "class": "hexagon",
+      "bytes": 111669120,
+      "sha256": "51aab1d49e9d2c8cda4452b7c5ae2074e3134cd4dbbbbc60f6899485486d2d1b",
+      "generation": "1495085357077011"
+    },
+    {
+      "class": "octagon",
+      "bytes": 125027696,
+      "sha256": "3a1beb8bf0426cd381614b65a0eb3a24e9d6243b141c6ea56d84ce845f279313",
+      "generation": "1495085383143393"
+    }
+  ],
+  "partitions": {
+    "version": 2,
+    "source": "Google Quick, Draw!",
+    "seed": 42,
+    "train_per_class": 102,
+    "validation_per_class": 26,
+    "test_per_class": 40,
+    "sources": [
+      {
+        "class": "circle",
+        "rows": 122876,
+        "bitmap_sha256": "e2bc3766e4e474527997466d154c4bca86d15254d73b4e56cc4eb99ee46d3bd7"
+      },
+      {
+        "class": "triangle",
+        "rows": 123170,
+        "bitmap_sha256": "6681d21a645034885c172a344ee8ae34c23abf60eb87eead050297d0e635c8fa"
+      },
+      {
+        "class": "square",
+        "rows": 125145,
+        "bitmap_sha256": "cb5b60ef4398ebd1bce70d5a259cfed1834ad51fa39586eee789de4cbc4713dd"
+      },
+      {
+        "class": "hexagon",
+        "rows": 142435,
+        "bitmap_sha256": "73f985856c661a651691e684e289e702350acb48ca48c96921f8e7c7dc7e320f"
+      },
+      {
+        "class": "octagon",
+        "rows": 159474,
+        "bitmap_sha256": "0ec118727aaa17f617f81992c98d047deb452b0fe56d4c4544a0cd07b288c44e"
+      }
+    ]
+  },
+  "train": {
+    "epochs": 4,
+    "image_size": 64,
+    "batch_size": 32,
+    "precision": "32-true",
+    "best_validation_loss": 0.7966586351394653
+  },
+  "holdout": {
+    "rows": 200,
+    "class_order": [
+      "circle",
+      "triangle",
+      "square",
+      "hexagon",
+      "octagon"
+    ],
+    "resnet18": {
+      "accuracy": 0.62,
+      "macro_recall": 0.6199999999999999,
+      "per_class": {
+        "circle": {
+          "support": 40,
+          "correct": 6,
+          "precision": 0.42857142857142855,
+          "recall": 0.15
+        },
+        "triangle": {
+          "support": 40,
+          "correct": 39,
+          "precision": 0.975,
+          "recall": 0.975
+        },
+        "square": {
+          "support": 40,
+          "correct": 37,
+          "precision": 0.9736842105263158,
+          "recall": 0.925
+        },
+        "hexagon": {
+          "support": 40,
+          "correct": 14,
+          "precision": 0.6666666666666666,
+          "recall": 0.35
+        },
+        "octagon": {
+          "support": 40,
+          "correct": 28,
+          "precision": 0.3218390804597701,
+          "recall": 0.7
+        }
+      },
+      "confusion_actual_by_predicted": [
+        [
+          6,
+          0,
+          0,
+          1,
+          33
+        ],
+        [
+          0,
+          39,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          37,
+          0,
+          3
+        ],
+        [
+          3,
+          0,
+          0,
+          14,
+          23
+        ],
+        [
+          5,
+          1,
+          1,
+          5,
+          28
+        ]
+      ]
+    },
+    "nearest_centroid": {
+      "accuracy": 0.655,
+      "macro_recall": 0.655,
+      "per_class": {
+        "circle": {
+          "support": 40,
+          "correct": 27,
+          "precision": 0.627906976744186,
+          "recall": 0.675
+        },
+        "triangle": {
+          "support": 40,
+          "correct": 37,
+          "precision": 0.8043478260869565,
+          "recall": 0.925
+        },
+        "square": {
+          "support": 40,
+          "correct": 27,
+          "precision": 0.7941176470588235,
+          "recall": 0.675
+        },
+        "hexagon": {
+          "support": 40,
+          "correct": 27,
+          "precision": 0.4909090909090909,
+          "recall": 0.675
+        },
+        "octagon": {
+          "support": 40,
+          "correct": 13,
+          "precision": 0.5909090909090909,
+          "recall": 0.325
+        }
+      },
+      "confusion_actual_by_predicted": [
+        [
+          27,
+          3,
+          2,
+          6,
+          2
+        ],
+        [
+          0,
+          37,
+          1,
+          2,
+          0
+        ],
+        [
+          0,
+          2,
+          27,
+          9,
+          2
+        ],
+        [
+          4,
+          3,
+          1,
+          27,
+          5
+        ],
+        [
+          12,
+          1,
+          3,
+          11,
+          13
+        ]
+      ]
+    }
+  },
+  "local_serving": {
+    "legacy_accuracy_before_preprocessing_contract": 0.2,
+    "with_contract_accuracy": 0.62,
+    "holdout_confusion_matches_training": true
+  },
+  "confirmation": {
+    "rows": 200,
+    "seed_and_class_index": [
+      20261126,
+      "class_index"
+    ],
+    "resnet18": {
+      "accuracy": 0.61,
+      "macro_recall": 0.61,
+      "per_class": {
+        "circle": {
+          "support": 40,
+          "correct": 12,
+          "precision": 0.5217391304347826,
+          "recall": 0.3
+        },
+        "triangle": {
+          "support": 40,
+          "correct": 39,
+          "precision": 0.9512195121951219,
+          "recall": 0.975
+        },
+        "square": {
+          "support": 40,
+          "correct": 36,
+          "precision": 0.9473684210526315,
+          "recall": 0.9
+        },
+        "hexagon": {
+          "support": 40,
+          "correct": 8,
+          "precision": 0.5,
+          "recall": 0.2
+        },
+        "octagon": {
+          "support": 40,
+          "correct": 27,
+          "precision": 0.32926829268292684,
+          "recall": 0.675
+        }
+      },
+      "confusion_actual_by_predicted": [
+        [
+          12,
+          0,
+          0,
+          2,
+          26
+        ],
+        [
+          0,
+          39,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          36,
+          2,
+          2
+        ],
+        [
+          6,
+          0,
+          0,
+          8,
+          26
+        ],
+        [
+          5,
+          2,
+          2,
+          4,
+          27
+        ]
+      ]
+    },
+    "nearest_centroid": {
+      "accuracy": 0.59,
+      "macro_recall": 0.59,
+      "per_class": {
+        "circle": {
+          "support": 40,
+          "correct": 21,
+          "precision": 0.44680851063829785,
+          "recall": 0.525
+        },
+        "triangle": {
+          "support": 40,
+          "correct": 39,
+          "precision": 0.8666666666666667,
+          "recall": 0.975
+        },
+        "square": {
+          "support": 40,
+          "correct": 26,
+          "precision": 0.8666666666666667,
+          "recall": 0.65
+        },
+        "hexagon": {
+          "support": 40,
+          "correct": 26,
+          "precision": 0.4482758620689655,
+          "recall": 0.65
+        },
+        "octagon": {
+          "support": 40,
+          "correct": 6,
+          "precision": 0.3,
+          "recall": 0.15
+        }
+      },
+      "confusion_actual_by_predicted": [
+        [
+          21,
+          1,
+          2,
+          8,
+          8
+        ],
+        [
+          0,
+          39,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          2,
+          26,
+          11,
+          1
+        ],
+        [
+          8,
+          0,
+          1,
+          26,
+          5
+        ],
+        [
+          18,
+          3,
+          1,
+          12,
+          6
+        ]
+      ]
+    }
+  }
+}

@@ -17,10 +17,10 @@ RUN pip install --no-cache-dir --no-compile \
 COPY inference.py   .
 COPY shape_analyzer /opt/python/shape_analyzer
 
-# Copy the only checkpoint file, renaming it to a stable path
-COPY checkpoints/*.pt /tmp/
-RUN mv /tmp/*.pt model.pt
-ENV MODEL_PATH="model.pt"
+# Package only the state dict exported from the selected validation checkpoint.
+COPY checkpoints/ ./model/
+RUN test -s ./model/model.pt
+ENV MODEL_PATH="model/model.pt"
 
 # ----------------------------------------------------------------------
 # 3. Tell Lambda which function to run
