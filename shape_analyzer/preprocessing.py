@@ -24,17 +24,29 @@ def preprocess_description(size, labels, weight_hash):
             "class_order": list(labels), "model_sha256": weight_hash}
 
 
-def prediction_transform(weights, labels, legacy):
-    weights = Path(weights)
-    sidecar = weights.with_suffix(".preprocess.json")
+def checkpoint_preprocessing(stream, labels, legacy):
+    """Return the transform, declared canvas and SHA-256 for this open state dictionary."""
+    stream.seek(0)
+    model_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+    stream.seek(0)
+    sidecar = Path(stream.name).with_suffix(".preprocess.json")
     if not sidecar.exists():
-        return legacy
+        return legacy, None, model_sha256
     info = json.loads(sidecar.read_text(encoding="utf-8"))
     size = info.get("size")
     if (info.get("version") != 1 or info.get("format") != "grayscale-nearest-square"
             or info.get("class_order") != list(labels) or type(size) is not int or not 1 <= size <= 2048):
         raise ValueError("The model preprocessing metadata is incompatible.")
+    if model_sha256 != info.get("model_sha256"):
+        raise ValueError("The preprocessing metadata belongs to a different model.")
+    transform = T.Compose([partial(resize_bitmap, size=size), normalized_tensor()])
+    return transform, size, model_sha256
+
+
+def prediction_transform(weights, labels, legacy):
+    weights = Path(weights)
+    if not weights.with_suffix(".preprocess.json").exists():
+        return legacy
     with weights.open("rb") as stream:
-        if hashlib.file_digest(stream, "sha256").hexdigest() != info.get("model_sha256"):
-            raise ValueError("The preprocessing metadata belongs to a different model.")
-    return T.Compose([partial(resize_bitmap, size=size), normalized_tensor()])
+        transform, _, _ = checkpoint_preprocessing(stream, labels, legacy)
+    return transform

@@ -50,6 +50,11 @@ def check_endpoint(run, new_per_class=0):
     if new_per_class < 0:
         raise ValueError("Confirmation count must be nonnegative.")
     metrics = json.loads((run / "checkpoints/evaluation.json").read_text(encoding="utf-8"))
+    checkpoint = (run / "checkpoints/model.pt").resolve()
+    with checkpoint.open("rb") as stream:
+        model_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+    if model_sha256 != metrics.get("model_sha256"):
+        raise ValueError("The checkpoint SHA-256 differs from the training evaluation.")
     spec = metrics["split"]
     labels = metrics["class_order"]
     signature = hashlib.sha256(json.dumps(spec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -66,7 +71,7 @@ def check_endpoint(run, new_per_class=0):
     module_spec = spec_from_file_location("_shape_local_endpoint", entry)
     serving = module_from_spec(module_spec)
     module_spec.loader.exec_module(serving)
-    serving.MODEL_PATH = str((run / "checkpoints/model.pt").resolve())
+    serving.MODEL_PATH = str(checkpoint)
     handler = serving.handler
 
     predictions, refs, latency = [], [], []
@@ -79,6 +84,8 @@ def check_endpoint(run, new_per_class=0):
         latency.append(1000 * (perf_counter() - start))
         if response["statusCode"] != 200:
             raise RuntimeError("Local handler failed on a prepared evaluation image.")
+        if serving._model_sha256 != model_sha256:
+            raise RuntimeError("The checkpoint changed between verification and model loading.")
         result = json.loads(response["body"])
         predictions.append(labels.index(result["class"]))
         refs.append(int(np.square(centroids - pixels).mean(axis=(1, 2)).argmin()))
@@ -90,7 +97,7 @@ def check_endpoint(run, new_per_class=0):
     ):
         raise RuntimeError("The serving run differs from the recorded holdout evaluation.")
     return {"cohort": "confirmation" if new_per_class else "holdout", "rows": len(actual),
-            "class_order": labels, "endpoint": endpoint, "nearest_centroid": reference,
+            "model_sha256": model_sha256, "class_order": labels, "endpoint": endpoint, "nearest_centroid": reference,
             "first_handler_ms": latency[0], "warm_handler_median_ms": float(np.median(latency[1:]))}
 
 

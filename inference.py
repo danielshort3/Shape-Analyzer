@@ -29,42 +29,43 @@ RESPONSE_HEADERS = {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
 }
+ROUTE_METHODS = {
+    "/": ("GET", "POST"),
+    "/health": ("GET",),
+    "/warmup": ("GET", "POST"),
+    "/predict": ("POST",),
+    "/classify": ("POST",),
+}
 
 _model = None
 _preprocess = None
 _torch = None
+_model_img_size = IMG_SIZE
+_model_sha256 = None
 
 
-def _json(status: int, body: dict[str, Any] | None = None) -> dict[str, Any]:
+def _json(status: int, body: dict[str, Any] | None = None, *, headers: dict[str, str] | None = None) -> dict[str, Any]:
     return {
         "statusCode": status,
-        "headers": RESPONSE_HEADERS,
+        "headers": RESPONSE_HEADERS | (headers or {}),
         "body": json.dumps(body or {}, separators=(",", ":")),
         "isBase64Encoded": False,
     }
 
 
-def _request_path(event: dict[str, Any] | None) -> str:
-    if not isinstance(event, dict):
-        return "/"
-    raw = (
-        event.get("rawPath")
-        or event.get("path")
-        or event.get("requestContext", {}).get("http", {}).get("path")
-        or "/"
-    )
-    path = "/" + str(raw).strip().lstrip("/")
-    return path.rstrip("/") or "/"
-
-
-def _request_method(event: dict[str, Any] | None) -> str:
-    if not isinstance(event, dict):
-        return "GET"
-    return (
-        event.get("requestContext", {}).get("http", {}).get("method")
-        or event.get("httpMethod")
-        or ("POST" if event.get("body") is not None else "GET")
-    ).upper()
+def _request_route(event: dict[str, Any]) -> tuple[str, str]:
+    context = event.get("requestContext", {})
+    if not isinstance(context, dict):
+        raise ValueError("BadEvent")
+    http = context.get("http", {})
+    if not isinstance(http, dict):
+        raise ValueError("BadEvent")
+    default_method = "POST" if event.get("body") is not None else "GET"
+    method = http.get("method", event.get("httpMethod", default_method))
+    path = event.get("rawPath", event.get("path", http.get("path", "/")))
+    if not isinstance(method, str) or not method.strip() or not isinstance(path, str) or not path.strip():
+        raise ValueError("BadEvent")
+    return method.strip().upper(), "/" + path.strip().strip("/")
 
 
 def _health_payload() -> dict[str, Any]:
@@ -73,13 +74,13 @@ def _health_payload() -> dict[str, Any]:
         "service": "shape-analyzer",
         "model_loaded": _model is not None,
         "labels": LABELS,
-        "img_size": IMG_SIZE,
+        "img_size": _model_img_size if _model is not None else IMG_SIZE,
         "max_request_bytes": MAX_REQ_BYTES,
     }
 
 
 def _load_model() -> None:
-    global _model, _preprocess, _torch
+    global _model, _preprocess, _torch, _model_img_size, _model_sha256
 
     if _model is not None:
         return
@@ -91,11 +92,7 @@ def _load_model() -> None:
     torch.set_num_threads(int(os.getenv("OMP_NUM_THREADS", "2")))
 
     from shape_analyzer.model import ShapeNet
-    from shape_analyzer.preprocessing import prediction_transform
-
-    model = ShapeNet(n_cls=len(LABELS))
-    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu", weights_only=True))
-    model.eval()
+    from shape_analyzer.preprocessing import checkpoint_preprocessing
 
     legacy = transforms.Compose([
         transforms.Resize(256),
@@ -103,7 +100,15 @@ def _load_model() -> None:
         transforms.ToTensor(),
         transforms.Normalize([0.5], [0.5]),
     ])
-    _preprocess = prediction_transform(MODEL_PATH, LABELS, legacy)
+    # Hash and deserialize the same open file if another process replaces the checkpoint.
+    with open(MODEL_PATH, "rb") as stream:
+        preprocess, canvas, digest = checkpoint_preprocessing(stream, LABELS, legacy)
+        model = ShapeNet(n_cls=len(LABELS))
+        model.load_state_dict(torch.load(stream, map_location="cpu", weights_only=True))
+    model.eval()
+    _preprocess = preprocess
+    _model_img_size = canvas or IMG_SIZE
+    _model_sha256 = digest
     _torch = torch
     _model = model
 
@@ -201,8 +206,13 @@ def handler(event: dict[str, Any], _context) -> dict[str, Any]:
         return _json(400, {"error": "BadEvent"})
 
     try:
-        method = _request_method(event)
-        path = _request_path(event)
+        method, path = _request_route(event)
+    except ValueError:
+        return _json(400, {"error": "BadEvent"})
+
+    try:
+        if path not in ROUTE_METHODS:
+            return _json(404, {"error": "NotFound"})
         if method == "OPTIONS":
             return {
                 "statusCode": 204,
@@ -210,12 +220,13 @@ def handler(event: dict[str, Any], _context) -> dict[str, Any]:
                 "body": "",
                 "isBase64Encoded": False,
             }
-        if method == "GET" and path in ("/", "/health"):
-            return _json(200, _health_payload())
-        if path == "/warmup" and method in ("GET", "POST"):
+        if method not in ROUTE_METHODS[path]:
+            allow = ", ".join((*ROUTE_METHODS[path], "OPTIONS"))
+            return _json(405, {"error": "MethodNotAllowed"}, headers={"Allow": allow})
+        if path == "/warmup":
             return _warmup_response(start)
-        if method != "POST":
-            return _json(405, {"error": "MethodNotAllowed"})
+        if method == "GET":
+            return _json(200, _health_payload())
         return _classify_response(event, start)
     except Exception as exc:
         print("ERROR:", exc, file=sys.stderr)

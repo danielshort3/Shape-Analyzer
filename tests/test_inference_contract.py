@@ -1,5 +1,6 @@
 """Exercise both API Gateway event formats and the local direct-invocation contract."""
 import base64
+import hashlib
 import io
 import json
 import subprocess
@@ -21,6 +22,7 @@ for event in ({'httpMethod': 'GET', 'path': '/'}, {'requestContext': {'http': {'
     payload = json.loads(response['body'])
     assert response['statusCode'] == 200 and response['headers']['Cache-Control'] == 'no-store'
     assert payload['status'] == 'ok' and payload['model_loaded'] is False
+    assert payload['img_size'] == 224
     assert payload['service'] == 'shape-analyzer' and len(payload['labels']) == 5
 assert not {'torch', 'torchvision', 'numpy', 'PIL'}.intersection(sys.modules)
 """
@@ -40,15 +42,22 @@ def encoded_image():
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def test_warmup_and_prediction_execute_the_model(tmp_path, monkeypatch):
+@pytest.mark.parametrize("canvas", [None, 64], ids=["legacy", "checkpoint"])
+def test_warmup_and_prediction_execute_the_model(tmp_path, monkeypatch, canvas):
     import torch
     from shape_analyzer.model import ShapeNet
+    from shape_analyzer.preprocessing import preprocess_description
 
-    # Known local architecture and fresh weights exercise the entire legacy inference path.
     weights = tmp_path / "example.pt"
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(11)
         torch.save(ShapeNet(n_cls=5).state_dict(), weights)
+    if canvas is not None:
+        with weights.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        weights.with_suffix(".preprocess.json").write_text(
+            json.dumps(preprocess_description(canvas, inference.LABELS, digest)), encoding="utf-8"
+        )
     monkeypatch.setattr(inference, "MODEL_PATH", str(weights))
     for name in ("_torch", "_model", "_preprocess"):
         monkeypatch.setattr(inference, name, None)
@@ -59,6 +68,9 @@ def test_warmup_and_prediction_execute_the_model(tmp_path, monkeypatch):
     assert first["statusCode"] == 200 and first_body["model_loaded"] and first_body["warmed"]
     assert first_body["status"] == "ready" and first_body["service"] == "shape-analyzer"
     assert set(first_body["shape_confidences"]) == set(inference.LABELS)
+    health = inference.handler({"httpMethod": "GET", "path": "/health"}, None)
+    payload = json.loads(health["body"])
+    assert payload["model_loaded"] and payload["img_size"] == (canvas or inference.IMG_SIZE)
 
     # The hook observes the same real model serving both warmup and prediction.
     forwards = []
@@ -83,7 +95,7 @@ def test_warmup_and_prediction_execute_the_model(tmp_path, monkeypatch):
             assert response["statusCode"] == 200
             shape, logits = forwards[-1]
             probabilities = torch.softmax(logits[0], dim=0)
-            assert shape == (1, 1, inference.IMG_SIZE, inference.IMG_SIZE)
+            assert shape == (1, 1, payload["img_size"], payload["img_size"])
             winner = inference.LABELS[int(probabilities.argmax())]
             assert result["class"] == winner
             assert result["confidence"] == round(float(probabilities.max()), 4)
@@ -106,6 +118,14 @@ def test_warmup_and_prediction_execute_the_model(tmp_path, monkeypatch):
     ({"body": {"b64": "dGV4dA=="}}, 400, "BadImage"),
     ({"body": {"b64": "x" * (inference.MAX_REQ_BYTES + 1)}}, 413, "ImageTooLarge"),
     ({"httpMethod": "DELETE", "path": "/predict"}, 405, "MethodNotAllowed"),
+    ({"httpMethod": "POST", "path": "/health", "body": {"b64": encoded_image()}}, 405, "MethodNotAllowed"),
+    ({"rawPath": "/unknown", "requestContext": {"http": {"method": "POST"}}, "body": {"b64": encoded_image()}}, 404, "NotFound"),
+    ({"httpMethod": "OPTIONS", "path": "/unknown"}, 404, "NotFound"),
+    ({"requestContext": None, "body": {"b64": encoded_image()}}, 400, "BadEvent"),
+    ({"requestContext": {"http": None}}, 400, "BadEvent"),
+    ({"httpMethod": 17}, 400, "BadEvent"),
+    ({"httpMethod": " ", "path": "/"}, 400, "BadEvent"),
+    ({"path": ["/predict"], "body": {}}, 400, "BadEvent"),
 ])
 def test_invalid_requests_fail_before_loading_model(payload, status, error, monkeypatch):
     def unexpected():
@@ -121,6 +141,15 @@ def test_image_pixel_limit_and_preflight(monkeypatch):
     assert response["statusCode"] == 413
     response = inference.handler({"httpMethod": "OPTIONS", "path": "/predict"}, None)
     assert response["statusCode"] == 204 and response["body"] == ""
+
+
+def test_method_not_allowed_advertises_only_the_requested_routes_methods():
+    warmup = inference.handler({"httpMethod": "DELETE", "path": "/warmup"}, None)
+    predict = inference.handler({"httpMethod": "GET", "path": "/predict"}, None)
+    assert warmup["statusCode"] == predict["statusCode"] == 405
+    assert warmup["headers"]["Allow"] == "GET, POST, OPTIONS"
+    assert predict["headers"]["Allow"] == "POST, OPTIONS"
+    assert "Allow" not in inference.handler({"httpMethod": "GET", "path": "/health"}, None)["headers"]
 
 
 def test_failed_model_setup_is_retryable(tmp_path, monkeypatch):

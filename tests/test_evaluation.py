@@ -1,3 +1,5 @@
+import hashlib
+import json
 import pickle
 
 import numpy as np
@@ -6,9 +8,12 @@ import torch
 
 from shape_analyzer.config import cfg
 from shape_analyzer.data import make_loaders, train_tfm
-from shape_analyzer.evaluation import classification_report
+from shape_analyzer.evaluate_serving import check_endpoint
+from shape_analyzer.evaluation import classification_report, evaluate
 from shape_analyzer.fixture import geometry_sources
 from shape_analyzer.helpers import load_npz
+from shape_analyzer.model import ShapeNet
+from shape_analyzer.preprocessing import preprocess_description
 from shape_analyzer.splits import prepare_splits
 
 
@@ -87,6 +92,49 @@ def test_confusion_rows_are_actual_and_columns_are_predictions():
     assert metrics["confusion_actual_by_predicted"] == [[1, 1], [0, 2]]
     assert metrics["accuracy"] == 0.75 and metrics["macro_recall"] == 0.75
     assert metrics["per_class"]["b"]["precision"] == pytest.approx(2 / 3)
+
+
+@pytest.mark.parametrize("confirmation_count", [0, 1], ids=["holdout", "confirmation"])
+def test_serving_rejects_another_checkpoints_matching_sidecar(tmp_path, confirmation_count):
+    checkpoints = tmp_path / "checkpoints"
+    checkpoints.mkdir()
+    weights = checkpoints / "model.pt"
+    weights.write_bytes(b"another run's weights")
+    foreign_hash = hashlib.sha256(weights.read_bytes()).hexdigest()
+    weights.with_suffix(".preprocess.json").write_text(
+        json.dumps(preprocess_description(64, cfg.CLASSES, foreign_hash)), encoding="utf-8"
+    )
+    original_hash = hashlib.sha256(b"original weights").hexdigest()
+    (checkpoints / "evaluation.json").write_text(json.dumps({"model_sha256": original_hash}), encoding="utf-8")
+
+    # Check the training record before opening any cohort or deserializing weights.
+    with pytest.raises(ValueError, match="checkpoint.*training"):
+        check_endpoint(tmp_path, new_per_class=confirmation_count)
+
+
+def test_serving_report_includes_digest_of_evaluated_geometry_model(tmp_path, sources):
+    files = prepare_splits(sources, source_name="geometry fixture")
+    train, _, test = make_loaders(files)
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(21)
+        model = ShapeNet()
+    recorded = evaluate(model, train.dataset, test, cfg.CLASSES)
+    checkpoint = tmp_path / "checkpoints" / "model.pt"
+    checkpoint.parent.mkdir()
+    torch.save(model.state_dict(), checkpoint)
+    with checkpoint.open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    checkpoint.with_suffix(".preprocess.json").write_text(
+        json.dumps(preprocess_description(cfg.OUT_RES, cfg.CLASSES, digest)), encoding="utf-8"
+    )
+    recorded.update(split=files.spec, model_sha256=digest)
+    (checkpoint.parent / "evaluation.json").write_text(json.dumps(recorded), encoding="utf-8")
+
+    report = check_endpoint(tmp_path)
+    assert report["model_sha256"] == digest
+    assert report["endpoint"] == recorded["resnet18"]
+    assert report["nearest_centroid"] == recorded["nearest_centroid"]
+
 
 def test_manual_archive_pair_with_duplicate_source_ids_is_rejected(sources):
     files = prepare_splits(sources)

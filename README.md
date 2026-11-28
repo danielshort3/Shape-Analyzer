@@ -40,7 +40,9 @@ Each run exports three files in its checkpoints directory.
 |---|---|
 | `model.pt` | Plain state dictionary for the original five-class ResNet18 architecture. |
 | `model.preprocess.json` | Class order, trained canvas size, resizing policy and SHA-256 of the corresponding weights. Keep it beside the weights when serving a newly trained model. |
-| `evaluation.json` | Run configuration, source content digests, selected validation loss, class metrics and both confusion matrices. |
+| `evaluation.json` | Run configuration, source content digests, exported checkpoint SHA-256, selected validation loss, class metrics and both confusion matrices. |
+
+Both serving evaluations verify `model.pt` against the training record before using a cohort. The report includes `model_sha256` for the weights the handler loaded, alongside the model and centroid scores.
 
 The `build_qd_dataset()` and `build_qd_holdout()` helpers return their versioned archive paths. Legacy `shapes_data.npz` and `qd_holdout.npz` files lack source IDs and remain available for explicit reading with `NPShapes(path)`. Code that opens generated splits directly should use the path returned by the builder.
 
@@ -50,11 +52,13 @@ Set `MODEL_PATH` to a trusted state dictionary. New exports use the training can
 
 | Route | Behavior |
 | --- | --- |
-| `GET /` or `GET /health` | Returns the service name, model-loaded flag, label order and request limit. A fresh process serves health using only the Python standard library. |
+| `GET /` or `GET /health` | Returns load status, label order, canvas size and request limit using only the standard library in a cold process. With `model_loaded: false`, `img_size` is the 224-pixel default. After loading, it reports the checkpoint’s verified canvas size, or 224 for legacy weights without a sidecar. |
 | `GET /warmup` or `POST /warmup` | Loads the configured model, runs a blank grayscale input through it and returns all five scores and elapsed handler milliseconds. |
 | `POST /`, `POST /predict` or `POST /classify` | Accepts a JSON object with a `b64` image string. Returns `class`, `confidence`, per-label `shape_confidences` and `duration_ms`. |
 
 Predictions also accept direct Lambda events containing the JSON body without HTTP routing metadata, plus API Gateway events with a base64-encoded binary image body. The encoded image is limited to 500,000 characters and 16,777,216 decoded pixels. The reported scores are rounded softmax probabilities across the five training classes.
+
+Known paths accept `OPTIONS` for preflight. An unknown path returns 404. An unsupported method on a known path returns 405 with an `Allow` header listing that path’s methods. Malformed routing metadata, including a null request context, returns 400 before inference.
 
 For a mouse-driven desktop canvas, install the optional `requirements-demo.txt` in your training environment. Run `python -c "from pathlib import Path; from shapes_pipeline import interactive_demo; interactive_demo(Path('shape-run-quick/checkpoints/model.pt'))"`. Use **s** to predict, **r** to reset and **q** to quit. The CLI provides a keyboard-accessible alternative.
 
