@@ -1,5 +1,7 @@
 from __future__ import annotations
 import functools
+import os
+from tempfile import NamedTemporaryFile
 import numpy as np
 from skimage.draw import polygon_perimeter
 from skimage.transform import resize as sk_resize
@@ -93,27 +95,34 @@ def generate_batch(shape: str, reg_pct_array: np.ndarray) -> np.ndarray:
     return imgs
 
 
-cfg.CACHE_DIR.mkdir(exist_ok=True)
-_NPZ_CACHE: dict[str, np.lib.npyio.NpzFile] = {}
-
-
 def load_npz(path: Path):
-    if path.as_posix() not in _NPZ_CACHE:
-        _NPZ_CACHE[path.as_posix()] = np.load(path, mmap_mode="r")
-    return _NPZ_CACHE[path.as_posix()]
+    """Read owned numeric arrays and close the file so a rebuilt cache is visible."""
+    with np.load(path, allow_pickle=False) as archive:
+        return {key: archive[key] for key in archive.files}
 
 
-@functools.lru_cache(maxsize=None)
 def _qd_array(shape: str):
-    p = cfg.CACHE_DIR / f"{shape}.npy"
-    if not p.exists():
-        url = (
-            "https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/"
-            f"{shape}.npy"
-        )
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            with open(p, "wb") as f:
-                for chunk in r.iter_content(1 << 16):
-                    f.write(chunk)
-    return np.load(p, mmap_mode="r")
+    if shape not in cfg.CLASSES:
+        raise ValueError("Unknown Quick, Draw! class.")
+    directory = cfg.CACHE_DIR
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{shape}.npy"
+    if not path.exists():
+        url = f"https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/{shape}.npy"
+        tmp = None
+        try:
+            with NamedTemporaryFile(dir=directory, suffix=".npy", delete=False) as output:
+                tmp = Path(output.name)
+                with requests.get(url, stream=True, timeout=(10, 60)) as response:
+                    response.raise_for_status()
+                    for chunk in response.iter_content(1 << 20):
+                        output.write(chunk)
+            arr = np.load(tmp, mmap_mode="r", allow_pickle=False)
+            if arr.dtype != np.uint8 or arr.ndim != 2 or arr.shape[1] != 784:
+                raise ValueError(f"Unexpected bitmap dimensions for {shape}.")
+            del arr
+            os.replace(tmp, path)
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
+    return np.load(path, mmap_mode="r", allow_pickle=False)

@@ -35,6 +35,7 @@ class CFG:
     # optimiser / schedule ----------------------------------------------
     MAX_EPOCHS: int = 100
     BATCH_SIZE: int = 1024
+    WORKERS: int = 0 if os.name == "nt" else 4
     LR: float = 3e-4
     WD: float = 1e-4
     PRECISION: str = "16-mixed"
@@ -44,7 +45,7 @@ class CFG:
     # file paths ---------------------------------------------------------
     DATA_PATH: Path = Path("shapes_data.npz")
     HOLD_PATH: Path = Path("qd_holdout.npz")
-    CACHE_DIR: Path = Path(os.getenv("CACHE_DIR", "/tmp/qd_cache"))
+    CACHE_DIR: Path = Path(os.getenv("CACHE_DIR", str(Path.home() / ".cache" / "shape-analyzer" / "quickdraw")))
     CKPT_DIR: Path = Path("checkpoints")
 
 

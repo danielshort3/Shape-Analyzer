@@ -1,0 +1,5 @@
+# Python 3.12 CPU benchmark and test environment.
+-r requirements.txt
+-r requirements-inference.txt
+pytest==9.2.0
+pip==26.3

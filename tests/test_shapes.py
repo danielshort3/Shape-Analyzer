@@ -5,6 +5,7 @@ import sys, pathlib
 
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
+import inference
 from shape_analyzer.config import cfg
 from shape_analyzer.helpers import _unit_vertices, generate_batch
 from shape_analyzer.data import NPShapes
@@ -35,3 +36,17 @@ def test_npshapes_dataset(tmp_path):
     assert int(y_cls) == 0
     from pytest import approx
     assert float(y_reg) == approx(0.1, rel=1e-5)
+
+
+def test_inference_health_route_does_not_load_model(monkeypatch):
+    monkeypatch.setattr(inference, "_model", None)
+    event = {
+        "requestContext": {"http": {"method": "GET", "path": "/health"}}
+    }
+
+    res = inference.handler(event, None)
+
+    assert res["statusCode"] == 200
+    assert '"service":"shape-analyzer"' in res["body"]
+    assert '"model_loaded":false' in res["body"]
+    assert inference._model is None

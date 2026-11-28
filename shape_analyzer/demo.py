@@ -16,9 +16,10 @@ from .model import ShapeNet
 def interactive_demo(weight_path: Path):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = ShapeNet().to(device)
-    model.load_state_dict(torch.load(weight_path, map_location=device))
+    model.load_state_dict(torch.load(weight_path, map_location=device, weights_only=True))
     model.eval()
-    val_tfm = T.Compose([T.ToTensor(), T.Normalize([0.5], [0.5])])
+    from .preprocessing import prediction_transform
+    val_tfm = prediction_transform(weight_path, cfg.CLASSES, T.Compose([T.ToTensor(), T.Normalize([0.5], [0.5])]))
 
     CANVAS, TH = cfg.OUT_RES, cfg.STROKE_PX
     canvas = np.zeros((CANVAS, CANVAS), np.uint8)
